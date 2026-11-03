@@ -44,3 +44,28 @@ func TestToTimelineCommentConfidentialRef(t *testing.T) {
 	require.NotNil(t, allowed.RefIssue)
 	assert.Equal(t, confidential.Title, allowed.RefIssue.Title)
 }
+
+func TestToTimelineCommentConfidentialDependency(t *testing.T) {
+	require.NoError(t, unittest.PrepareTestDatabase())
+	repo := unittest.AssertExistsAndLoadBean(t, &repo_model.Repository{ID: 1})
+	publicIssue := unittest.AssertExistsAndLoadBean(t, &issues_model.Issue{ID: 1})
+	owner := unittest.AssertExistsAndLoadBean(t, &user_model.User{ID: 2})
+	poster := unittest.AssertExistsAndLoadBean(t, &user_model.User{ID: 10})
+
+	confidential := &issues_model.Issue{RepoID: repo.ID, Repo: repo, Index: 9101, PosterID: poster.ID, Poster: poster, Title: "hidden nightjar", IsConfidential: true}
+	require.NoError(t, db.Insert(t.Context(), confidential))
+
+	for _, commentType := range []issues_model.CommentType{issues_model.CommentTypeAddDependency, issues_model.CommentTypeRemoveDependency} {
+		comment := &issues_model.Comment{Type: commentType, IssueID: publicIssue.ID, Issue: publicIssue, PosterID: poster.ID, Poster: poster, DependentIssueID: confidential.ID, DependentIssue: confidential}
+		require.NoError(t, db.Insert(t.Context(), comment))
+
+		hidden := ToTimelineComment(t.Context(), repo, comment, nil)
+		require.NotNil(t, hidden)
+		assert.Nil(t, hidden.DependentIssue)
+
+		allowed := ToTimelineComment(t.Context(), repo, comment, owner)
+		require.NotNil(t, allowed)
+		require.NotNil(t, allowed.DependentIssue)
+		assert.Equal(t, confidential.Title, allowed.DependentIssue.Title)
+	}
+}

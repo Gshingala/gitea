@@ -198,7 +198,13 @@ func ToTimelineComment(ctx context.Context, repo *repo_model.Repository, c *issu
 	}
 
 	if c.DependentIssue != nil {
-		comment.DependentIssue = ToAPIIssue(ctx, doer, c.DependentIssue)
+		visible, err := issues_model.IsIssueVisibleForDoer(ctx, c.DependentIssue, doer)
+		if err != nil {
+			log.Error("IsIssueVisibleForDoer(%d): %v", c.DependentIssue.ID, err)
+		}
+		if err == nil && visible {
+			comment.DependentIssue = ToAPIIssue(ctx, doer, c.DependentIssue)
+		}
 	}
 
 	return comment

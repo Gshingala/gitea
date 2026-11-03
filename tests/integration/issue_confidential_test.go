@@ -1180,6 +1180,12 @@ func TestConfidentialIssueReferencesAndDependencies(t *testing.T) {
 	}))
 	require.NoError(t, db.Insert(t.Context(), &issues_model.IssueDependency{UserID: 2, IssueID: publicIssue.ID, DependencyID: confidential.ID}))
 	require.NoError(t, db.Insert(t.Context(), &issues_model.IssueDependency{UserID: 2, IssueID: confidential.ID, DependencyID: publicIssue.ID}))
+	dependencyCommentTypes := []string{"add_dependency", "remove_dependency"}
+	for _, commentType := range []issues_model.CommentType{issues_model.CommentTypeAddDependency, issues_model.CommentTypeRemoveDependency} {
+		require.NoError(t, db.Insert(t.Context(), &issues_model.Comment{
+			Type: commentType, IssueID: publicIssue.ID, PosterID: 2, DependentIssueID: confidential.ID,
+		}))
+	}
 
 	issueLink := fmt.Sprintf("/%s/issues/%d", repo.FullName(), publicIssue.Index)
 	apiLink := fmt.Sprintf("/api/v1/repos/%s/issues/%d", repo.FullName(), publicIssue.Index)
@@ -1206,6 +1212,9 @@ func TestConfidentialIssueReferencesAndDependencies(t *testing.T) {
 		assert.Empty(t, refComments[0].RefCommitSHA)
 		assert.Empty(t, refComments[0].RefAction)
 		assert.NotContains(t, timeline.Body.String(), confidentialListKeyword)
+		for _, c := range *DecodeJSON(t, viewer.apiRequest(t, apiLink+"/timeline"), &[]*api.TimelineComment{}) {
+			assert.NotContains(t, dependencyCommentTypes, c.Type)
+		}
 
 		for _, list := range []string{"/dependencies", "/blocks"} {
 			titles, total := apiIssueTitles(t, viewer.apiRequest(t, apiLink+list))
@@ -1228,6 +1237,15 @@ func TestConfidentialIssueReferencesAndDependencies(t *testing.T) {
 		require.NotNil(t, refComment)
 		require.NotNil(t, refComment.RefIssue)
 		assert.Equal(t, confidential.Title, refComment.RefIssue.Title)
+
+		var dependencyTitles []string
+		for _, c := range *DecodeJSON(t, viewer.apiRequest(t, apiLink+"/timeline"), &[]*api.TimelineComment{}) {
+			if slices.Contains(dependencyCommentTypes, c.Type) {
+				require.NotNil(t, c.DependentIssue)
+				dependencyTitles = append(dependencyTitles, c.DependentIssue.Title)
+			}
+		}
+		assert.Equal(t, []string{confidential.Title, confidential.Title}, dependencyTitles)
 
 		for _, list := range []string{"/dependencies", "/blocks"} {
 			titles, total := apiIssueTitles(t, viewer.apiRequest(t, apiLink+list))
