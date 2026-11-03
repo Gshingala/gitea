@@ -1,4 +1,5 @@
 {{/* Value - value of the search field (for search results page) */}}
 {{/* Disabled (optional) - if search field has to be disabled */}}
 {{/* Placeholder (optional) - placeholder text to be used */}}
-<input type="search" name="q"{{with .Value}} value="{{.}}"{{end}} maxlength="255" spellcheck="false" placeholder="{{with .Placeholder}}{{.}}{{else}}{{ctx.Locale.Tr "search.search"}}{{end}}"{{if .Disabled}} disabled{{end}}>
+{{$placeholder := or .Placeholder (ctx.Locale.Tr "search.search")}}
+<input type="search" name="q"{{with .Value}} value="{{.}}"{{end}} maxlength="255" spellcheck="false" placeholder="{{$placeholder}}" aria-label="{{$placeholder}}"{{if .Disabled}} disabled{{end}}>

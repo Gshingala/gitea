@@ -52,10 +52,16 @@ func notificationUnreadCount(ctx *context.Context) int64 {
 	if ctx.Doer == nil {
 		return 0
 	}
-	count, err := db.Count[activities_model.Notification](ctx, activities_model.FindNotificationOptions{
+	opts := activities_model.FindNotificationOptions{
 		UserID: ctx.Doer.ID,
+		Viewer: ctx.Doer,
 		Status: []activities_model.NotificationStatus{activities_model.NotificationStatusUnread},
-	})
+	}
+	err := opts.ResolveHiddenIssues(ctx)
+	var count int64
+	if err == nil {
+		count, err = db.Count[activities_model.Notification](ctx, opts)
+	}
 	if err != nil {
 		if !errors.Is(err, goctx.Canceled) {
 			log.Error("Unable to find notification for user:%-v: %v", ctx.Doer, err)

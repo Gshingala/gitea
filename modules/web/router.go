@@ -239,6 +239,11 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.normalizeRequestPath(w, req, r.chiRouter)
 }
 
+// FindRoute returns the pattern of the route registered for method and path, including mounted routers, or "" if there is none
+func (r *Router) FindRoute(method, path string) string {
+	return r.chiRouter.Find(chi.NewRouteContext(), method, path)
+}
+
 // NotFound defines a handler to respond whenever a route could not be found.
 func (r *Router) NotFound(h http.HandlerFunc) {
 	middlewares, handlerFunc, _ := wrapMiddlewareAndHandler(r.afterRouting, r.curMiddlewares, []any{h})

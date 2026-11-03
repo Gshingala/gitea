@@ -46,6 +46,9 @@ If you'd like to build from source or make a distribution package, see [docs/bui
 
 After building, you can run `./gitea web` to start the server, or `./gitea help` to see all available commands.
 
+Upgrading from an earlier build adds the `is_confidential` column to `issue` automatically on startup (migration v29); back up the database first.
+To run the confidential issue tests: `GITEA_TEST_DATABASE=sqlite make 'test-integration#Confidential'`.
+
 ## Contributing
 
 Expected workflow is: Fork -> Patch -> Push -> Pull Request

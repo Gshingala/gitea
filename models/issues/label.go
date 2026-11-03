@@ -112,6 +112,30 @@ func (l *Label) CalOpenIssues() {
 	l.NumOpenIssues = l.NumIssues - l.NumClosedIssues
 }
 
+// SubtractHiddenIssues removes the issues hidden from the viewer from the in-memory counters only;
+// the stored counters must stay unchanged, so never persist a label after calling it.
+func (l *Label) SubtractHiddenIssues(c HiddenIssueCounts) {
+	l.NumIssues = max(l.NumIssues-c.Open-c.Closed, 0)
+	l.NumClosedIssues = max(l.NumClosedIssues-c.Closed, 0)
+	l.CalOpenIssues()
+}
+
+// SubtractHiddenIssuesFromLabels removes the confidential issues hidden from scope from the in-memory counters of labels.
+func SubtractHiddenIssuesFromLabels(ctx context.Context, labels []*Label, scope *VisibilityScope) error {
+	ids := make([]int64, 0, len(labels))
+	for _, l := range labels {
+		ids = append(ids, l.ID)
+	}
+	counts, err := CountHiddenConfidentialIssuesByLabel(ctx, scope, ids)
+	if err != nil {
+		return fmt.Errorf("SubtractHiddenIssuesFromLabels: %w", err)
+	}
+	for _, l := range labels {
+		l.SubtractHiddenIssues(counts[l.ID])
+	}
+	return nil
+}
+
 // SetArchived set the label as archived
 func (l *Label) SetArchived(isArchived bool) {
 	if !isArchived {
@@ -128,11 +152,12 @@ func (l *Label) IsArchived() bool {
 }
 
 // CalOpenOrgIssues calculates the open issues of a label for a specific repo
-func (l *Label) CalOpenOrgIssues(ctx context.Context, repoID, labelID int64) {
+func (l *Label) CalOpenOrgIssues(ctx context.Context, repoID, labelID int64, scope *VisibilityScope) {
 	counts, _ := CountIssuesByRepo(ctx, &IssuesOptions{
-		RepoIDs:  []int64{repoID},
-		LabelIDs: []int64{labelID},
-		IsClosed: optional.Some(false),
+		RepoIDs:    []int64{repoID},
+		LabelIDs:   []int64{labelID},
+		IsClosed:   optional.Some(false),
+		Visibility: scope,
 	})
 
 	for _, count := range counts {

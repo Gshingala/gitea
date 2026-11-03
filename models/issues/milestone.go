@@ -97,6 +97,15 @@ func (m *Milestone) AfterLoad() {
 	}
 }
 
+// SubtractHiddenIssues removes the issues hidden from the viewer from the in-memory counters only;
+// the stored counters must stay unchanged, so never persist a milestone after calling it.
+func (m *Milestone) SubtractHiddenIssues(c HiddenIssueCounts) {
+	m.NumIssues = max(m.NumIssues-c.Open-c.Closed, 0)
+	m.NumClosedIssues = max(m.NumClosedIssues-c.Closed, 0)
+	m.NumOpenIssues = m.NumIssues - m.NumClosedIssues
+	m.BeforeUpdate() // recomputes Completeness
+}
+
 // State returns string representation of milestone status.
 func (m *Milestone) State() api.StateType {
 	if m.IsClosed {
